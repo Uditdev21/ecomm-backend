@@ -52,5 +52,3 @@ CLOUDINARY_API_SECRET="cloudinary api secret"
 CLOUDINARY_API_KEY="cloudinary api key"
 CLOUDINARY_CLOUD_NAME="cloudinary cloud name"
 ```
-test run
-2
