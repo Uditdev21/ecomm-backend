@@ -51,7 +51,8 @@ class userModel(BaseModel):
     uid:str
     email:str
     user_type:user_status
-    
+    order:list
+    cart:list
 
 
 # You can add further operations here, like checking a collection

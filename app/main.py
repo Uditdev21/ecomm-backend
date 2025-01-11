@@ -1,9 +1,10 @@
 from fastapi import FastAPI
-from .test import testRouts
-from .admin import admin
-from .db import db
-from .client import client
 from fastapi.middleware.cors import CORSMiddleware
+
+from .client import client
+from .admin import admin
+from .test import testRouts
+
 app=FastAPI()
 app.add_middleware(
     CORSMiddleware,

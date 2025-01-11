@@ -27,25 +27,29 @@ async def check_user(request: Request):
         email = decoded_token.get("email")
 
         user=users_collection.find_one({"uid":uid})
+        if "_id" in user:
+            user["_id"] = str(user["_id"])
+        
         if user:
             # Return the existing user's details
             return {
+                "_id": user["_id"],
                 "uid": user["uid"],
                 "email": user["email"],
                 "user_type": user["user_type"]
             }
         else:
             # Create a new user document
-            # new_user = {
-            #     "uid": uid,
-            #     "email": email,
-            #     "user_type": user_status.CLIENT,  # Default user type
-            #     # "created_at": datetime.utcnow()  # Use current timestamp
-            # }
-            new_user=userModel(uid=uid,email=email,user_type=user_status.CLIENT)
+            new_user=userModel(uid=uid,email=email,user_type=user_status.CLIENT,order=[],cart=[],current_order=0)
             # Insert the new user into the database
-            users_collection.insert_one(new_user)
-            return new_user
+            userdoc=users_collection.insert_one(new_user)
+            return {
+                "_id": userdoc.inserted_id,
+                "uid": userdoc["uid"],
+                "email": userdoc["email"],
+                "user_type": userdoc["user_type"]
+            }
+        
 
     except InvalidIdTokenError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="invalid address")

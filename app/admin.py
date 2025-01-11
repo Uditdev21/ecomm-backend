@@ -35,30 +35,3 @@ def uploade_file(image,_folder):
     except Error as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Unable to upload the file: {str(e)}")
 
-
-# FastAPI endpoint for file upload
-# @admin.post("/upload")
-# async def upload_product(
-#     file: UploadFile = File(...), 
-#     user_type: str = Depends(check_user_status)
-# ):
-#     try:
-#         # Read file content
-#         file_content = await file.read()
-
-#         # Upload to Cloudinary
-#         response = uploade_file(file_content)
-
-#         # Return the Cloudinary response
-#         return {
-#             "message": "File uploaded successfully",
-#             "url": response.get("secure_url"),
-#             "public_id": response.get("public_id"),
-#         }
-#     except HTTPException as e:
-#         raise e
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-#             detail=f"Unexpected error: {str(e)}"
-#         )

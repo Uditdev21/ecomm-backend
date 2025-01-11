@@ -1,9 +1,14 @@
 from fastapi import APIRouter,HTTPException,File,UploadFile,status,Form,Query
 from firebase_admin import auth
 from .admin import uploade_file
+# from logging import log
 
-from .db import prdoducts_collection,slidshow_collection,catagory_collection,orders_cpollection,payment_type,productModel,imageStruct,order_status
+from .db import prdoducts_collection,slidshow_collection,catagory_collection,orders_cpollection,users_collection,payment_type,productModel,imageStruct,order_status
 from bson import ObjectId
+import logging
+
+# Initialize logging
+logging.basicConfig(level=logging.INFO)
 
 # from pymongo.database import
 
@@ -22,6 +27,9 @@ def serialize_product_object_id(doc):
     if "catagory" in doc and isinstance(doc["catagory"], ObjectId):
         doc["catagory"] = str(doc["catagory"])
     return doc
+
+
+
 
 @testRouts.get('/generate-token')
 def generate_test_token(uid: str):
@@ -108,7 +116,7 @@ def get_products():
 
         # Optionally, you can log the documents or return them in the response
         return product_list
-        print(product_list)
+        # print(product_list)
 
     except Exception as e:
         # Handle any exception that occurs during the process
@@ -186,14 +194,34 @@ async def createCategory(name=Form(...),discription=Form(...),image:UploadFile=F
         HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,detail='faild to upload document')
 
 
+def serialize_category_object_id(doc):
+    """Convert ObjectId to string in MongoDB document."""
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    if "prdoducts" in doc and isinstance(doc["prdoducts"], list):
+        doc["prdoducts"] = [
+            str(product_id) if isinstance(product_id, ObjectId) else product_id
+            for product_id in doc["prdoducts"]
+        ]
+    return doc
+
 @testRouts.get('/getCategory')
 def getCategory():
     try:
-        docs=catagory_collection.find()
-        catagory_list = [serialize_product_object_id(doc) for doc in docs]
+        # Fetch documents from the collection
+        docs = catagory_collection.find()
+        docs_list = list(docs)  # Convert cursor to a list
+
+        # Serialize the documents
+        catagory_list = [serialize_category_object_id(doc) for doc in docs_list]
+        
         return catagory_list
-    except:
-        HTTPException()
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get category: {str(e)}"
+        )
 
 @testRouts.get('/getproductByCategory')
 def getproductByCategory(catagoryID:str=Query(...)):
@@ -223,20 +251,37 @@ def slidShowImages():
 
 
 @testRouts.get('/buyProduct')
-def buyProduct(productID:str=Query(...),payment:str=Query(...)):
+def buyProduct(productID: str = Query(...), payment: str = Query(...), userID: str = Query(...)):
     try:
         try:
             product_id = ObjectId(productID)
-        except Exception:
+            user_id = ObjectId(userID)
+        except Exception as e:
+            logging.error(f"Invalid documentID format: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid documentID format"
             )
-        
-        doc=prdoducts_collection.find_one({'_id':product_id})
+
+        userdoc = users_collection.find_one({'_id': user_id})
+        if not userdoc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        doc = prdoducts_collection.find_one({'_id': product_id})
         if not doc:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="product not found")
-        orders_cpollection.insert_one(doc,payment_type=payment,order_Status=order_status.PENDING)
-        return {"message":"order placed successfully"}
-    except:
-        raise HTTPException()
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+        order_doc = {
+            'product': product_id,
+            'user': user_id,
+            'payment_type': payment,
+            'order_status': order_status.PENDING.value
+        }
+        order_result = orders_cpollection.insert_one(order_doc)
+        users_collection.update_one({'_id': user_id}, {'$push': {'order': order_result.inserted_id},'$inc':{'current_order':1}})
+        return {"message": "Order placed successfully"}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Failed to place order: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to place order")
